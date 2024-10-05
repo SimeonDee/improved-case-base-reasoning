@@ -1,6 +1,10 @@
 # An Improved Case Retrieval Model for Case-Base Reasoning Systems with a Hybridized Geometric Similarity Measure
 
-A Streamlit app for predicting Catfish disease, using a Hybridized Case-Base Reasoning using (Euclidean distance, cosine and jaccard similarity scores). Users select from a list of symptoms and get the disease predicted
+An Improved Case-Based Reasoning (CBR) System implemented as an hybridization of (Euclidean distance, cosine and jaccard similarity scores). 
+
+It uses streamlit to render a friendly user interface for end-users.
+
+Users select from a list of symptoms, sets a number of desired k-nearest solutions and a similarity threshold, then the system uses CBR approach to get the disease (using Nearest solution) predicted.
 
 ---
 - Name: `Oluwaseyi Oluwatobi OMONIJO`
