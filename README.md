@@ -4,7 +4,7 @@ An Improved Case-Based Reasoning (CBR) System implemented as an hybridization of
 
 It uses streamlit to render a friendly user interface for end-users.
 
-Users select from a list of symptoms, sets a number of desired k-nearest solutions and a similarity threshold, then the system uses CBR approach to get the disease (using Nearest solution) predicted.
+Users select from a list of symptoms, sets a number of desired k-nearest solutions and a similarity threshold, then the system uses CBR approach to return the k-disease (Nearest solution) having similarity scores above the specified threshold.
 
 ---
 - Name: `Oluwaseyi Oluwatobi OMONIJO`
