@@ -25,7 +25,7 @@ Users select from a list of symptoms, sets a number of desired k-nearest solutio
 
 ## Runing the application
 ```bash
-(env)$ streamlit run ./app.py
+(env)$ streamlit run ./Main_Page.py
 ````
 
 ## Stop running server:
