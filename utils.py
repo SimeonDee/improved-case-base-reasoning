@@ -203,9 +203,30 @@ class ImprovedCBR:
         else:
             return scaled_score
 
-    def get_best_k_cases(self, cases_results, k=1, thresh_hold=0.70):
-        answers = cases_results.sort_values(by='weighted_scores', ascending=False)
-        answers = answers[answers['weighted_scores'] >= thresh_hold]
+    def get_best_k_cases(self, cases_results, k=1, thresh_hold=0.70, similarity_metrics='hybrid'):
+        """Gets best k solutions, sorted in descending order of specified similarity metrics.
+        
+        Args:
+            cases_results (pd.DataFrame): the computed solutions with scores.
+            k (int): Number of nearest solutions to return.
+            thresh_hold (float): minimum similarity score thresh_hold to return.
+            similarity_metrics (str): The similary metric to use e.g. any of 
+                {'hybrid', 'cosine', 'jaccard', 'euclidean'}.
+        """
+        answers = None
+        if similarity_metrics == "hybrid":
+            answers = cases_results.sort_values(by='weighted_scores', ascending=False)
+            answers = answers[answers['weighted_scores'] >= thresh_hold]
+        elif similarity_metrics == "cosine":
+            answers = cases_results.sort_values(by='scaled_cosine_scores', ascending=False)
+            answers = answers[answers['scaled_cosine_scores'] >= thresh_hold]
+        if similarity_metrics == "jaccard":
+            answers = cases_results.sort_values(by='scaled_jaccard_scores', ascending=False)
+            answers = answers[answers['scaled_jaccard_scores'] >= thresh_hold]
+        if similarity_metrics == "euclidean":
+            answers = cases_results.sort_values(by='scaled_euclid_scores', ascending=False)
+            answers = answers[answers['scaled_euclid_scores'] >= thresh_hold]
+        
         return answers[:k] if len(answers) >= k else answers
 
     def solve_problem(self, problem:list, k:int=1, thresh_hold:float=0.75):
@@ -306,7 +327,10 @@ class ImprovedCBR:
         plt.xlabel('Weighted Similarity Score')
         return fig
 
-    def get_best_solution(self, problem:list, k:int=1, thresh_hold:float=0.1):
+    def get_best_solution(
+            self, problem:list, k:int=1,
+            thresh_hold:float=0.1, similarity_metrics='hybrid'
+        ):
         """Finds a single best solution in the Knowledge-base to the problem. 
 
         Finds a solution of an existing problem cases with the highest 
@@ -317,6 +341,8 @@ class ImprovedCBR:
             k (int): Number of closest solutions to return.
             thresh_hold (float): minimum allowable weighted similarity
                 score of the solutions to return.
+            similarity_metrics (str): The similary metric to use 
+                e.g. any of {'hybrid', 'cosine', 'jaccard', 'euclidean'}
 
         Returns:
             list: the best existing solution to the problem case.
@@ -332,17 +358,35 @@ class ImprovedCBR:
             'scaled_cosine_scores',
             'scaled_jaccard_scores'
         ]].mean(axis=1).round(2)
-        final_results_df = self.get_best_k_cases(distance_scores, k=k, thresh_hold=thresh_hold)
+        final_results_df = self.get_best_k_cases(
+            distance_scores, k=k,
+            thresh_hold=thresh_hold,
+            similarity_metrics=similarity_metrics
+        )
         cols = final_results_df.columns
-        results_list = final_results_df[[cols[0], cols[1], cols[-1]]].iloc[0].values
+        similarity_score_col_lbl = "similarity_score"
+        if similarity_metrics == "hybrid":
+            results_list = final_results_df[[cols[0], cols[1], "weighted_scores"]].iloc[0].values
+            similarity_score_col_lbl = "hybrid_similarity_score"
+        elif similarity_metrics == "euclidean":
+            results_list = final_results_df[[cols[0], cols[1], "scaled_euclid_scores"]].iloc[0].values
+            similarity_score_col_lbl = "scaled_euclid_scores"
+        elif similarity_metrics == "cosine":
+            results_list = final_results_df[[cols[0], cols[1], "scaled_cosine_scores"]].iloc[0].values
+            similarity_score_col_lbl = "scaled_cosine_scores"
+        elif similarity_metrics == "jaccard":
+            results_list = final_results_df[[cols[0], cols[1], "scaled_jaccard_scores"]].iloc[0].values
+            similarity_score_col_lbl = "scaled_jaccard_scores"
         results_dict = {
             "disease": results_list[0],
             "alias": results_list[1],
-            "similarity_score": results_list[2],
+            similarity_score_col_lbl: results_list[2],
         }
         return results_dict
     
-    def get_best_solutions_for_test_cases(self, problems:pd.DataFrame):
+    def get_best_solutions_for_test_cases(
+            self, problems:pd.DataFrame, 
+            similarity_metrics="hybrid"):
         """Finds the best solution in the Knowledge-base if any exist.
 
         Finds k-solutions whose cases have similarity score above 
@@ -350,6 +394,8 @@ class ImprovedCBR:
 
         Args:
             problems (pd.DataFrame): A list of test-cases (problem) to find solution to.
+            similarity_metrics (str): The similary metric to use 
+                e.g. any of {'hybrid', 'cosine', 'jaccard', 'euclidean'}
         
         Returns:
             DataFrame: the k-nearest existing solutions to the problem cases.
@@ -357,19 +403,33 @@ class ImprovedCBR:
         base_cases = self.kb[self.kb.columns[:-2]]
         solutions = self.kb[self.kb.columns[-2:]]
         problem_list = list(problems.values)
+        score_label = None
+        if similarity_metrics == "hybrid":
+            score_label = "hybrid_similarity_score"
+        elif similarity_metrics == "euclidean":
+            score_label = "scaled_euclid_scores"
+        elif similarity_metrics == "cosine":
+            score_label = "scaled_cosine_scores"
+        elif similarity_metrics == "jaccard":
+            score_label = "scaled_jaccard_scores"
         solutions = {
             "disease": [],
             "alias": [],
-            "similarity_score": [],
+            score_label: [],
         }
         for problem in problem_list:
-            result = self.get_best_solution(problem)
+            result = self.get_best_solution(problem, similarity_metrics=similarity_metrics)
             solutions["disease"].append(result["disease"])
             solutions["alias"].append(result["alias"])
-            solutions["similarity_score"].append(result["similarity_score"])
+            solutions[score_label].append(result[score_label])
         return pd.DataFrame(solutions, index=problems.index)
     
-    def evaluate_cbr_metrics(self, true_values: pd.Series, predicted_values: pd.Series) -> pd.DataFrame:
+    def evaluate_cbr_metrics(
+            self,
+            true_values: pd.Series,
+            predicted_values: pd.Series,
+            col_label='metrics'
+    ) -> pd.DataFrame:
         """Calculates the metrics scores between actual_disease and predicted_disease.
         
         Args:
@@ -400,13 +460,13 @@ class ImprovedCBR:
             "roc_auc": roc_auc
         }
         results = pd.DataFrame(metrics, index=[0]).T
-        results.rename(columns={0:'metrics'}, inplace=True)
+        results.rename(columns={0:col_label}, inplace=True)
         return results
 
-    def visualize_metrics(self, metrics:pd.DataFrame):
+    def visualize_metrics(self, metrics:pd.DataFrame, col_label="metrics"):
         fig = plt.figure(figsize=(8,3))
         # metrics.sort_values(by="metrics", ascending=False).plot.bar(rot=45)
-        metrics.sort_values(by="metrics", ascending=False, inplace=True)
+        metrics.sort_values(by=col_label, ascending=False, inplace=True)
         sns.barplot(y=metrics[metrics.columns[0]], x=metrics.index)
         plt.title("Evaluation Metrics on Test set\n")
         plt.ylabel('Scores')
